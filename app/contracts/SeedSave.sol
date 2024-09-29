@@ -21,6 +21,8 @@ contract SeedSale is Ownable{
     //StableCoin
     IERC20 public currency
 
+    mapping(address user => userPoints points) public points;
+
     constructor(uint _initialPrice, address token, uint minAmount_) Ownable(msg.sender) {
         initialPrice = minAmount_;
         currency = IERC20(token);
@@ -28,11 +30,37 @@ contract SeedSale is Ownable{
     }
 
 
-    function buyPoints(uint amount) public {}
-    //remobolso
-    function shellPoints(uint amount) public {}
+    function buyPoints(uint amount) public {
+        require(amount > minAmount, "not Enough Amount"); 
+        require(seedStatus, "seedStatus Inactive");
+        currency.transferFrom(msg.sender, address(this), amount);
+        userPoints memory userData = userPoints({
+            points: amount/getPrice(), amount: amount
+        });
+        points[msg.sender] = userData;
 
-    function setCurrency (address newCurrency) public onlyOwner();
+        totalPoints += userData.points;
+        totalVolume += amount;
+        //emit
+    }
+    //remobolso
+    function shellPoints(uint amount) public {
+        require(seedStatus, "seedStatus Inactive");
+        require(!secondPhase, "No shellpoints in secondPhase");
+
+        userPoints memory userData = points[msg.sender];
+        totalPoints -= userData.points;
+        points[msg.sender] = userPoints({points:0, amount:0})
+
+        currency.transfer(msg.sender, userData.amount);
+        totalVolume += userData.amount;
+        //emit
+    }
+
+    function setCurrency (address newCurrency) public onlyOwner(){
+        require(seedStatus, "seedStatus Inactive");
+        currency = IERC20(newCurrency);
+    }
     function setSeedStatus(bool _status) public onlyOwner();
     function withdrawSeed()public onlyOwner();
 
